@@ -68,12 +68,12 @@ int inspect_pipes(pipe_info_t *pipe_fd_array, int max_pipe_fds) {
     if (len == -1) continue; 
     link_target[len] = '\0'; 
     if (strncmp(link_target, "pipe:[", 6) == 0) {
-      assert(count <max_pipe_fds);
+      JASSERT(count < max_pipe_fds);
       unsigned long inode = strtoul(link_target + 6, NULL, 10);
       int flags = fcntl(fd, F_GETFL);
-      assert(flags != -1);
+      JASSERT(flags != -1);
       pipe_rw_t rw_type = (pipe_rw_t)(flags & O_ACCMODE);
-      assert(rw_type == PIPE_READ || rw_type == PIPE_WRITE);
+      JASSERT(rw_type == PIPE_READ || rw_type == PIPE_WRITE);
       pipe_fd_array[count].fd = fd;
       pipe_fd_array[count].pipe_inode = inode;
       pipe_fd_array[count].rw_type = rw_type;
@@ -84,7 +84,6 @@ int inspect_pipes(pipe_info_t *pipe_fd_array, int max_pipe_fds) {
   closedir(dir);
   return count;
 }
-// ---------------------------------------------------------------------
 
 int recreate_pipes(pipe_info_t *pipe_fd_array, int num_fds) {
   pipe_map_t pipe_map[MAX_PIPE_FDS] = {0};
@@ -95,7 +94,7 @@ int recreate_pipes(pipe_info_t *pipe_fd_array, int num_fds) {
   for (int i = 0; i < num_fds; i++) {
     int fd = pipe_fd_array[i].fd;
     // Assert no pre-existing fd at site of old fds
-    assert(fd == fd_unique || fcntl(fd, F_GETFD) == -1);
+    JASSERT(fd == fd_unique || fcntl(fd, F_GETFD) == -1);
     dup2(fd_unique, fd); // Occupy fd; Close it later.
   }
 
@@ -109,18 +108,14 @@ int recreate_pipes(pipe_info_t *pipe_fd_array, int num_fds) {
           break;
       }
     }
-    assert(map_count < MAX_PIPE_FDS);
+    JASSERT(map_count < MAX_PIPE_FDS);
     if (!found && pipe_map[map_count].created == 0) {
       int new_fds[2];
-      assert(pipe(new_fds) != -1);
+      JASSERT(pipe(new_fds) != -1);
       pipe_map[map_count].old_inode = old_inode;
       pipe_map[map_count].new_read_fd = new_fds[0];
       pipe_map[map_count].new_write_fd = new_fds[1];
       pipe_map[map_count].created = 1;
-
-      printf("recreate_pipes: Created new pipe (Inode: %lu -> New R:%d, W:%d)\n", 
-             old_inode, new_fds[0], new_fds[1]);
-
       map_count++;
     }
   }
@@ -132,7 +127,6 @@ int recreate_pipes(pipe_info_t *pipe_fd_array, int num_fds) {
   close(fd_unique);
 
   // Duplicate the new pipe ends onto the original FD numbers
-  printf("\nrecreate_pipes: Mapping new FDs to original FD numbers (dup2):\n");
   for (int i = 0; i < num_fds; i++) {
     unsigned long old_inode = pipe_fd_array[i].pipe_inode;
     int old_fd = pipe_fd_array[i].fd;
@@ -155,14 +149,11 @@ int recreate_pipes(pipe_info_t *pipe_fd_array, int num_fds) {
   
   // Final Step: Close the *original* new FDs that were used for duplication.
   // These are guaranteed not to intersect with the original pipe fds.
-  printf("\nrecreate_pipes: Closing original FDs.\n");
   for (int j = 0; j < map_count; j++) {
     close(pipe_map[j].new_read_fd);
     close(pipe_map[j].new_write_fd);
   }
 
-  printf("recreate_pipes: Pipe recreation complete."
-         " FDs are now pointing to NEW pipes.\n");
   return 0;
 }
 
@@ -228,7 +219,6 @@ static void checkpoint_gpu() {
 }
 
 static void restore_gpu() {
-  printf("calling CUDA restore function\n");
   fflush(stdout);
   int pid = getpid();
   // Release reserved memories for NVIDIA device files.
@@ -265,7 +255,6 @@ static int eventfd_trampoline(unsigned int initval, int flags) {
 }
 
 static void cuda_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data) {
-  volatile int dummy = 1;
   switch (event) {
     case DMTCP_EVENT_INIT:
       dmtcp_setup_trampoline("eventfd", (void *)&eventfd_trampoline,
@@ -302,7 +291,7 @@ static void cuda_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data) {
     case DMTCP_EVENT_PRECHECKPOINT:
       UNINSTALL_TRAMPOLINE(eventfd_trampoline_info);
       num_fds_found = inspect_pipes(pipe_list, MAX_PIPE_FDS);
-      assert(num_fds_found >= 0);
+      JASSERT(num_fds_found >= 0);
       break;
 
     case DMTCP_EVENT_RESUME:
@@ -322,7 +311,7 @@ static void cuda_event_hook(DmtcpEvent_t event, DmtcpEventData_t *data) {
 
     case DMTCP_EVENT_RESTART:
       // See comments in DMTCP_EVENT_RESUME above.
-      assert(recreate_pipes(pipe_list, num_fds_found) != -1);
+      JASSERT(recreate_pipes(pipe_list, num_fds_found) != -1);
       break;
     
     default:
