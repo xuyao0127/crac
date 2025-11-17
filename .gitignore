@@ -1,3 +1,6 @@
 *.o
 *.so
 *.exe
+*.dmtcp
+ckpt_rank_*/
+dmtcp_restart_script*
