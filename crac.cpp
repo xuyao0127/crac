@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <dlfcn.h>
 #include <unistd.h>
 #include <string.h>
 #include <dirent.h>
@@ -87,6 +89,12 @@ int inspect_pipes(pipe_info_t *pipe_fd_array, int max_pipe_fds) {
 }
 
 int recreate_pipes(pipe_info_t *pipe_fd_array, int num_fds) {
+  static void* handle = dlopen("libc.so.6", RTLD_LAZY);
+  JASSERT(handle != NULL)("Failed to open libc");
+  int (*real_pipe)(int*);
+  *(void**)(&real_pipe) = dlsym(handle, "pipe");
+  JASSERT(dlerror() == NULL)("Failed to find symbol for pipe");
+
   pipe_map_t pipe_map[MAX_PIPE_FDS] = {0};
   int map_count = 0;
 
@@ -112,7 +120,7 @@ int recreate_pipes(pipe_info_t *pipe_fd_array, int num_fds) {
     JASSERT(map_count < MAX_PIPE_FDS);
     if (!found && pipe_map[map_count].created == 0) {
       int new_fds[2];
-      JASSERT(pipe(new_fds) != -1);
+      JASSERT((*real_pipe)(new_fds) != -1);
       pipe_map[map_count].old_inode = old_inode;
       pipe_map[map_count].new_read_fd = new_fds[0];
       pipe_map[map_count].new_write_fd = new_fds[1];
