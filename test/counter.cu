@@ -7,13 +7,13 @@ __global__ void increment() {
 }
 
 int main(int argc, char **argv) {
-    while (true) {
-        int host_counter = 0;
+  while (true) {
+    int host_counter = 0;
 
-        increment<<<1,1>>>();
-        cudaMemcpyFromSymbol(&host_counter, counter, sizeof counter);
-        printf("%d...\n", host_counter);
-        sleep(1);
-    }
-    return 0;
+    increment<<<1,1>>>();
+    cudaMemcpyFromSymbol(&host_counter, counter, sizeof counter);
+    printf("%d...\n", host_counter);
+    sleep(1);
+  }
+  return 0;
 }

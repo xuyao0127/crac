@@ -45,6 +45,7 @@ typedef struct {
 
 std::vector<ProcMapsArea> nvidia_device_files;
 CUprocessState cuda_state = CU_PROCESS_STATE_RUNNING;
+CUcheckpointRestoreArgs restore_args = {0};
 int cuda_initialized = 0;
 pipe_info_t pipe_list[MAX_PIPE_FDS] = {0};
 int num_fds_found;
@@ -187,9 +188,20 @@ static void checkpoint_gpu() {
     cuda_initialized = 1;
   }
   int pid = getpid();
+
   CUcheckpointLockArgs lock_args = {0};
   CUcheckpointCheckpointArgs checkpoint_args = {0};
 
+  CUresult ret = cuCheckpointProcessLock(pid, &lock_args);
+  JASSERT(ret == CUDA_SUCCESS)(ret);
+
+  // List all nvidia related device files. These device
+  // files will be released by the following checkpoint
+  // API. In future version of the API will reserve
+  // these addresses by itself, but for now, we need to
+  // help it to reserve these addresses so that DMTCP
+  // and other codes won't use them and causing conflict
+  // at the time of restart.
   dmtcp::ProcSelfMaps proc_maps;
   Area area;
   while (proc_maps.getNextArea(&area)) {
@@ -197,8 +209,7 @@ static void checkpoint_gpu() {
       nvidia_device_files.push_back(area);
     }
   }
-  CUresult ret = cuCheckpointProcessLock(pid, &lock_args);
-  JASSERT(ret == CUDA_SUCCESS)(ret);
+
   ret = cuCheckpointProcessCheckpoint(pid, &checkpoint_args);
   JASSERT(ret == CUDA_SUCCESS)(ret);
   ret = cuCheckpointProcessGetState(pid, &cuda_state);
@@ -219,13 +230,11 @@ static void checkpoint_gpu() {
 }
 
 static void restore_gpu() {
-  fflush(stdout);
   int pid = getpid();
   // Release reserved memories for NVIDIA device files.
   for (Area device_area : nvidia_device_files) {
     munmap(device_area.addr, device_area.size);
   }
-  CUcheckpointRestoreArgs restore_args = {0};
   CUcheckpointUnlockArgs unlock_args = {0};
   CUresult ret = cuCheckpointProcessRestore(pid, &restore_args);
   JASSERT(ret == CUDA_SUCCESS)(ret);

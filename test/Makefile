@@ -1,13 +1,16 @@
 CC=gcc
 CX=g++
 
-FILES=counter
-TESTS=$(addsuffix .exe, ${FILES})
+FILES=counter mpi_cuda
 
-default: ${TESTS}
+default: ${FILES}
 
-%.exe: %.cu
-	nvcc -g -O0 -o $@ $^ -cudart=shared
+counter: counter.cu
+	# nvcc -g -O0 -o $@ $^ -cudart=shared
+	nvcc -g -O0 -o $@ $^ -cudart=shared -I/opt/cray/pe/mpich/8.1.30/ofi/gnu/12.3/include -L/opt/cray/pe/mpich/8.1.30/ofi/gnu/12.3/lib -lmpi
+
+mpi_cuda: mpi_cuda.cu
+	nvcc -g -O0 -o $@ $^ -cudart=shared -I/opt/cray/pe/mpich/8.1.30/ofi/gnu/12.3/include -L/opt/cray/pe/mpich/8.1.30/ofi/gnu/12.3/lib -lmpi
 
 tidy:
 	rm -f *~ .*.swp dmtcp_restart_script*.sh ckpt_*.dmtcp
