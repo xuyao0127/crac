@@ -66,6 +66,9 @@ int inspect_pipes(pipe_info_t *pipe_fd_array, int max_pipe_fds) {
     if (strspn(entry->d_name, "0123456789") != strlen(entry->d_name)) continue;
     int fd = atoi(entry->d_name);
     if (fd == dirfd(dir)) continue;
+    // fd 0 (stdin), 1 (stdout) or 2 (stderr) could be replacd by pipe,
+    // but we don't want to save them.
+    if (fd == 0 || fd == 1 || fd == 2) continue;
     snprintf(fd_path, PATH_MAX, "/proc/self/fd/%s", entry->d_name);
     ssize_t len = readlink(fd_path, link_target, PATH_MAX - 1);
     if (len == -1) continue; 
@@ -217,8 +220,12 @@ static void checkpoint_gpu() {
       nvidia_device_files.push_back(area);
     }
   }
+  printf("start checkpoining GPU\n");
+  fflush(stdout);
 
   ret = cuCheckpointProcessCheckpoint(pid, &checkpoint_args);
+  printf("finished checkpoining GPU\n");
+  fflush(stdout);
   JASSERT(ret == CUDA_SUCCESS)(ret);
   ret = cuCheckpointProcessGetState(pid, &cuda_state);
   JASSERT(ret == CUDA_SUCCESS)(ret);
