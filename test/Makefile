@@ -1,12 +1,15 @@
 CC=gcc
 CX=g++
 
-FILES=counter mpi_cuda
+FILES=counter counter_mpi mpi_cuda
 
 default: ${FILES}
 
 counter: counter.cu
 	# nvcc -g -O0 -o $@ $^ -cudart=shared
+	nvcc -g -O0 -o $@ $^ -cudart=shared 
+
+counter_mpi: counter_mpi.cu
 	nvcc -g -O0 -o $@ $^ -cudart=shared -I/opt/cray/pe/mpich/8.1.30/ofi/gnu/12.3/include -L/opt/cray/pe/mpich/8.1.30/ofi/gnu/12.3/lib -lmpi
 
 mpi_cuda: mpi_cuda.cu
