@@ -37,7 +37,7 @@ check: ${LIBNAME}.so tests
 	  --with-plugin $$PWD/${LIBNAME}.so ./test/counter
 
 ${LIBNAME}.so: ${LIBOBJS}
-	${LINK} -shared -fPIC -o $@ $^ -lcuda
+	${LINK} -shared -fPIC -o $@ $^ -lcuda -ldl
 
 .c.o:
 	${CC} ${CFLAGS} -c -o $@ $<
