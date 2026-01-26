@@ -3,7 +3,9 @@ CX=g++
 
 FILES=counter counter_mpi mpi_cuda
 
-default: ${FILES}
+default: counter
+
+mpi: counter_mpi mpi_cuda
 
 counter: counter.cu
 	# nvcc -g -O0 -o $@ $^ -cudart=shared
