@@ -1,5 +1,5 @@
 CC=gcc
-CX=g++
+CXX=g++
 
 # The name will be the same as the current directory name.
 NAME=${shell basename $$PWD}
