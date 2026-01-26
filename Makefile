@@ -15,10 +15,9 @@ ifndef DMTCP_ROOT
   DMTCP_ROOT=../../
 endif
 DMTCP_INCLUDE=-I${DMTCP_ROOT}/include -I${DMTCP_ROOT}/jalib -I${DMTCP_ROOT}/src
-CUDA_INCLUDE=-I/usr/local/cuda/include
 
-override CFLAGS += -g3 -O0 -fPIC -I${DMTCP_INCLUDE} ${CUDA_INCLUDE}
-override CXXFLAGS += -g3 -O0 -fPIC ${DMTCP_INCLUDE} ${CUDA_INCLUDE}
+override CFLAGS += -g3 -O0 -fPIC -I${DMTCP_INCLUDE}
+override CXXFLAGS += -g3 -O0 -fPIC ${DMTCP_INCLUDE}
 LINK = ${CC}
 
 # if version.h not found:
