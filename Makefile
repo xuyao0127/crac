@@ -1,39 +1,46 @@
 CC=gcc
 CXX=g++
 
-# The name will be the same as the current directory name.
-NAME=${shell basename $$PWD}
+LIBNAME=libdmtcp_cuda
+LIBOBJS = cuda-ckpt.o
 
-# By default, your resulting plugin library will have this name.
-LIBNAME=libdmtcp_${NAME}
+DMTCP_INCLUDE_FLAGS=-I$(DMTCP_ROOT)/include -I$(DMTCP_ROOT)/jalib -I$(DMTCP_ROOT)/src
 
-# As you add new files to your plugin library, add the object file names here.
-LIBOBJS = ${NAME}.o
-
-# Modify if your DMTCP_ROOT is located elsewhere.
-ifndef DMTCP_ROOT
-  DMTCP_ROOT=../../
+# Find CUDA path
+NVCC_PATH := $(shell which nvcc 2>/dev/null)
+ifdef NVCC_PATH
+  CUDA_HOME := $(realpath $(dir $(NVCC_PATH))/..)
 endif
-DMTCP_INCLUDE=-I${DMTCP_ROOT}/include -I${DMTCP_ROOT}/jalib -I${DMTCP_ROOT}/src
+CUDA_HOME ?= $(or $(CUDA_PATH),/usr/local/cuda)
+CUDA_INCLUDE_FLAGS=-I$(CUDA_HOME)/include
 
-override CFLAGS += -g3 -O0 -fPIC -I${DMTCP_INCLUDE}
-override CXXFLAGS += -g3 -O0 -fPIC ${DMTCP_INCLUDE}
-LINK = ${CC}
+override CFLAGS   += -g3 -O0 -fPIC $(DMTCP_INCLUDE_FLAGS) $(CUDA_INCLUDE_FLAGS)
+override CXXFLAGS += -g3 -O0 -fPIC $(DMTCP_INCLUDE_FLAGS) $(CUDA_INCLUDE_FLAGS)
 
-# if version.h not found:
-ifeq (,$(wildcard ${DMTCP_INCLUDE}/dmtcp/version.h))
-  override CFLAGS += -DDMTCP_PACKAGE_VERSION='"3.0.0"'
-endif
+LINK = ${CXX}
 
 default: ${LIBNAME}.so tests
 
 check: ${LIBNAME}.so tests
-	# Kill an old coordinator on this port if present, just in case.
-	@ ${DMTCP_ROOT}/bin/dmtcp_command --quit --quiet \
-	  --coord-port ${DEMO_PORT} 2>/dev/null || true
-	# Note that full path of plugin (using $$PWD in this case) is required.
-	${DMTCP_ROOT}/bin/dmtcp_launch --coord-port ${DEMO_PORT} --interval 5 \
-	  --with-plugin $$PWD/${LIBNAME}.so ./test/counter
+	@${DMTCP_ROOT}/bin/dmtcp_command --quit 2>/dev/null || true
+	@rm -f ckpt_*.dmtcp dmtcp_restart_script*.sh
+	echo Launching ./test/counter
+	@${DMTCP_ROOT}/bin/dmtcp_launch --with-plugin $$PWD/${LIBNAME}.so ./test/counter & \
+	LAUNCH_PID=$$! ; \
+	sleep 3 ; \
+	echo Start checkpointing
+	${DMTCP_ROOT}/bin/dmtcp_command --checkpoint ; \
+	sleep 4 ; \
+	${DMTCP_ROOT}/bin/dmtcp_command --quit ; \
+	wait $$LAUNCH_PID 2>/dev/null || true ; \
+	echo Restarting
+	${DMTCP_ROOT}/bin/dmtcp_restart ckpt_*.dmtcp & \
+	RESTART_PID=$$! ; \
+	sleep 3 ; \
+	${DMTCP_ROOT}/bin/dmtcp_command --quit ; \
+	wait $$RESTART_PID 2>/dev/null || true
+	rm -rf ckpt_*.dmtcp
+	rm -rf dmtcp_restart_script*
 
 ${LIBNAME}.so: ${LIBOBJS}
 	${LINK} -shared -fPIC -o $@ $^ -lcuda -ldl
@@ -61,4 +68,4 @@ dist: distclean
 	  tar czvf $$dir.tar.gz --exclude-vcs ./$$dir
 	dir=`basename $$PWD`; ls -l ../$$dir.tar.gz
 
-.PHONY: default clean dist distclean
+.PHONY: default check tests tidy clean distclean dist

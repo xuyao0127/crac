@@ -1,5 +1,5 @@
 CC=gcc
-CX=g++
+CXX=g++
 
 FILES=counter counter_mpi mpi_cuda
 
@@ -8,8 +8,7 @@ default: counter
 mpi: counter_mpi mpi_cuda
 
 counter: counter.cu
-	# nvcc -g -O0 -o $@ $^ -cudart=shared
-	nvcc -g -O0 -o $@ $^ -cudart=shared 
+	nvcc -g -O0 -o $@ $^ -cudart=shared
 
 counter_mpi: counter_mpi.cu
 	nvcc -g -O0 -o $@ $^ -cudart=shared -I/opt/cray/pe/mpich/8.1.30/ofi/gnu/12.3/include -L/opt/cray/pe/mpich/8.1.30/ofi/gnu/12.3/lib -lmpi
@@ -21,14 +20,9 @@ tidy:
 	rm -f *~ .*.swp dmtcp_restart_script*.sh ckpt_*.dmtcp
 
 clean: tidy
-	rm -f ${LIBOBJS} ${LIBNAME}.so
+	rm -f $(FILES)
 
 distclean: clean
-	rm -f ${LIBNAME}.so *~ .*.swp dmtcp_restart_script*.sh ckpt_*.dmtcp
+	rm -f dmtcp_restart_script*.sh ckpt_*.dmtcp
 
-dist: distclean
-	dir=`basename $$PWD`; cd ..; \
-	  tar czvf $$dir.tar.gz --exclude-vcs ./$$dir
-	dir=`basename $$PWD`; ls -l ../$$dir.tar.gz
-
-.PHONY: default clean dist distclean
+.PHONY: default mpi tidy clean distclean
